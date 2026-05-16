@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
@@ -7,6 +8,7 @@ public class PlayerBall : MonoBehaviour
     //defaul Ref
     private Rigidbody2D rb;
     private Camera mainCamera;
+    [SerializeField] private SpriteRenderer ballRenderer;
 
     //Shot Parameteres (private - no need anywhere else)
     [Header("Shot Settings")]
@@ -29,12 +31,32 @@ public class PlayerBall : MonoBehaviour
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip shootSound;
     [SerializeField] private AudioClip aimSound;
+    [SerializeField] private AudioClip goodHoleSound;
+    [SerializeField] private AudioClip badHoleSound;
 
     //start pos
     private Vector2 startPosition;
 
     //stop ball when velocity is low
     [SerializeField] private float snapStopVelocity = 0.15f;
+
+
+    //rotation setings
+    [Header("Visual Rotation")]
+    [SerializeField] private Transform ballVisual;
+    [SerializeField] private float rotationSpeed = 180f;
+    [SerializeField] private float minRotationVelocity = 0.05f;
+
+
+    //for ball enters mud  -> save/reset dampping
+    private float defaultLinearDamping;
+    private float defaultAngularDamping;
+
+    //VFX ref
+    [Header("VFX")]
+    [SerializeField] private GameObject goodHoleHitVfx;
+    [SerializeField] private GameObject badHoleHitVfx;
+    [SerializeField] private GameObject resetBallVfx;
 
 
     private void Awake()
@@ -54,6 +76,14 @@ public class PlayerBall : MonoBehaviour
 
         //Save Start Position for reset
         startPosition = transform.position;
+
+        //rotation find tranform
+        if (ballVisual == null)
+            ballVisual = transform;
+
+        //for ball enters mud -> save/reset dampping
+        defaultLinearDamping = rb.linearDamping;
+        defaultAngularDamping = rb.angularDamping;
     }
 
 
@@ -67,6 +97,7 @@ public class PlayerBall : MonoBehaviour
             StopBall();
             return;
         }
+        RotateBallVisual();
 
         if (isAiming)
         {
@@ -164,8 +195,29 @@ public class PlayerBall : MonoBehaviour
             GameManager.GM.OnHoleHit(hole.HoleType);
 
         StopBall();
+
+        //vfx
+        GameObject selectedVfx = hole.HoleType == HoleType.Good ? goodHoleHitVfx : badHoleHitVfx;
+        SpawnVfx(selectedVfx);
+
+        //sound
+        AudioClip selectedSound = hole.HoleType == HoleType.Good ? goodHoleSound : badHoleSound;
+        PlaySound(selectedSound);
+
+        //hide ball sprite and wait before reset the possition
+        if (ballRenderer != null)
+            ballRenderer.enabled = false;
         ResetBallToStart();
+      
+
     }
+
+    private IEnumerator ResetBallAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ResetBallVisual();
+    }
+
 
     private void StopBall()
     {
@@ -220,6 +272,15 @@ public class PlayerBall : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         rb.angularVelocity = 0f;
         transform.position = startPosition;
+
+        StartCoroutine(ResetBallAfterDelay(1.0f));
+    }
+
+    public void ResetBallVisual()
+    {
+        if (ballRenderer != null)
+            ballRenderer.enabled = true;
+        SpawnVfx(resetBallVfx);
     }
 
     //Stop ball Velocity if to slow
@@ -233,5 +294,51 @@ public class PlayerBall : MonoBehaviour
             rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;
         }
+    }
+
+
+    private void RotateBallVisual()
+    {
+        if (ballVisual == null)
+            return;
+
+        Vector2 velocity = rb.linearVelocity;
+
+        if (velocity.magnitude < minRotationVelocity)
+            return;
+
+        float rotationDirection = -Mathf.Sign(velocity.x);
+
+        if (Mathf.Abs(velocity.x) < 0.05f)
+            rotationDirection = -Mathf.Sign(velocity.y);
+
+        float rotationAmount = velocity.magnitude * rotationSpeed * Time.deltaTime * rotationDirection;
+
+        ballVisual.Rotate(0f, 0f, rotationAmount);
+    }
+
+    public void EnterMud(float speedMultiplier, float mudLinearDamping)
+    {
+        rb.linearVelocity *= speedMultiplier;
+        rb.linearDamping = mudLinearDamping;
+    }
+
+    public void ExitMud()
+    {
+        rb.linearDamping = defaultLinearDamping;
+        rb.angularDamping = defaultAngularDamping;
+    }
+
+    public void SpawnVfx(GameObject vfxPrefab)
+    {
+        if (vfxPrefab == null)
+            return;
+        Vector3 spawnPosition = transform.position;
+        spawnPosition.z = -2f;
+        GameObject spawnedVfx = Instantiate(vfxPrefab, spawnPosition, Quaternion.identity);
+
+        float destroyDelay = 1.0f;
+        if (destroyDelay > 0f)
+            Destroy(spawnedVfx, destroyDelay);
     }
 }

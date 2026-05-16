@@ -1,0 +1,12 @@
+# ninja log v5
+62	1235	8005841279384742	FramePacing/CMakeFiles/swappywrapper.dir/UnitySwappyWrapper.cpp.o	587837ddce6166c
+1253	3189	8005841301343494	C:/Users/Leon/Desktop/PocketGolf/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6le2a2ia/obj/arm64-v8a/libswappywrapper.so	fd8643a31a365ec7
+17	3698	8005841304467292	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	3f787410a5e22165
+39	3705	8005841303907721	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	482e8d1206b23779
+9	3766	8005841306462623	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	6f17dbc2612c9558
+48	3961	8005841309286003	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	49248b280be4b792
+26	3992	8005841309704877	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	f3f36672c1ea6f90
+32	3995	8005841309645048	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	e56b64b2f55985d0
+1	4571	8005841315512429	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	fed3c01784dd1992
+55	4860	8005841319031290	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	73b155fbcc96f383
+4860	4958	8005841320051394	C:/Users/Leon/Desktop/PocketGolf/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6le2a2ia/obj/arm64-v8a/libgame.so	59a088ba38846acc

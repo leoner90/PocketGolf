@@ -10,9 +10,11 @@ public enum HoleType
 [RequireComponent(typeof(Collider2D))]
 public class HoleLogic : MonoBehaviour
 {
+    //Hole Type Good by Default
     [Header("Hole Settings")]
     [SerializeField] private HoleType holeType = HoleType.Good;
 
+    //Holes Visual Setting, good, bad , in transition
     [Header("Visual Settings")]
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Color goodColor = Color.blue;

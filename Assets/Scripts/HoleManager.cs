@@ -13,6 +13,7 @@ public class HoleManager : MonoBehaviour
     [SerializeField] private float maxChangeTime = 7f;
     [SerializeField] private float warningFlashTime = 1f;
 
+
     private void Start()
     {
         MakeSureAtLeastOneGoodHole();
@@ -134,5 +135,31 @@ public class HoleManager : MonoBehaviour
             if (holes[i] != null)
                 holes[i].transform.position = shuffledPoints[i].position;
         }
+    }
+
+    private void SetupInitialHoleTypes()
+    {
+        if (holes == null || holes.Length == 0)
+            return;
+
+        foreach (HoleLogic hole in holes)
+        {
+            if (hole != null)
+                hole.SetHoleType(HoleType.Bad);
+        }
+
+        int firstBlueIndex = Random.Range(0, holes.Length);
+        int secondBlueIndex = Random.Range(0, holes.Length);
+
+        while (secondBlueIndex == firstBlueIndex && holes.Length > 1)
+        {
+            secondBlueIndex = Random.Range(0, holes.Length);
+        }
+
+        if (holes[firstBlueIndex] != null)
+            holes[firstBlueIndex].SetHoleType(HoleType.Good);
+
+        if (holes.Length > 1 && holes[secondBlueIndex] != null)
+            holes[secondBlueIndex].SetHoleType(HoleType.Good);
     }
 }

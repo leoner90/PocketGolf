@@ -1,5 +1,6 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
+using UnityEngine.Audio;
 
 
 
@@ -25,6 +26,17 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject mainMenuPanel;
 
+    //audio 
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip lowTimeWarningSound;
+
+    [Header("Low Time Warning")]
+    [SerializeField] private GameObject lowTimeOverlay;
+    [SerializeField] private float lowTimeWarningThreshold = 5f;
+
+    private bool isLowTimeSoundPlaying;
+
     //Game Stats
     private float currentTime;
     private float currentScore;
@@ -41,6 +53,10 @@ public class GameManager : MonoBehaviour
 
         GM = this;
         DontDestroyOnLoad(gameObject);
+
+        //audio
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     private void Start()
@@ -56,6 +72,7 @@ public class GameManager : MonoBehaviour
             return;
 
         currentTime -= Time.deltaTime;
+        HandleLowTimeWarningSound();
 
         if (currentTime <= 0f)
         {
@@ -76,7 +93,7 @@ public class GameManager : MonoBehaviour
         if (holeType == HoleType.Good)
         {
             currentTime += goodHoleBonus;
-            currentScore += 1;
+            currentScore++; // probably need some extra var instead of ++
         }
         else
         {
@@ -120,5 +137,38 @@ public class GameManager : MonoBehaviour
             holeManager.MoveHolesAfterShot();
 
         UpdateTimerUI();
+    }
+
+    private void HandleLowTimeWarningSound()
+    {
+        if (audioSource == null || lowTimeWarningSound == null)
+            return;
+
+        if (currentTime <= lowTimeWarningThreshold && currentTime > 0f)
+        {
+            if (!isLowTimeSoundPlaying)
+            {
+                audioSource.clip = lowTimeWarningSound;
+                audioSource.loop = true;
+                audioSource.Play();
+
+                isLowTimeSoundPlaying = true;
+
+                //show red overlay
+                if (lowTimeOverlay != null)
+                    lowTimeOverlay.SetActive(true);
+            }
+        }
+        else
+        {
+            if (audioSource != null && isLowTimeSoundPlaying)
+                audioSource.Stop();
+
+            isLowTimeSoundPlaying = false;
+
+            //show red overlay
+            if (lowTimeOverlay != null)
+                lowTimeOverlay.SetActive(false);
+        }
     }
 }
