@@ -1,21 +1,43 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Camera))]
+
+
 public class CameraAutoScale : MonoBehaviour
 {
-    [SerializeField] private float targetWidth = 5.6f;
-    [SerializeField] private float targetHeight = 10f;
+   //********** VARIABLES**********
+   private float mobileTargetWidth = 5.1f;
+   private float mobileTargetHeight = 9.3f;
+    [SerializeField] private float desktopTargetWidth = 5f;
+    [SerializeField] private float desktopTargetHeight = 11f;
 
     private Camera cam;
 
+
+    //********** Awake **********
     private void Awake()
     {
         cam = GetComponent<Camera>();
         FitCamera();
     }
 
+    //********** Try to fit mobile screen ....... **********
     private void FitCamera()
     {
+        float targetWidth;
+        float targetHeight;
+
+        if (Application.isMobilePlatform)
+        {
+            targetWidth = mobileTargetWidth;
+            targetHeight = mobileTargetHeight;
+        }
+        else
+        {
+            targetWidth = desktopTargetWidth;
+            targetHeight = desktopTargetHeight;
+        }
+
         float screenAspect = (float)Screen.width / Screen.height;
 
         float sizeByHeight = targetHeight / 2f;
@@ -24,3 +46,6 @@ public class CameraAutoScale : MonoBehaviour
         cam.orthographicSize = Mathf.Max(sizeByHeight, sizeByWidth);
     }
 }
+ 
+
+ 

@@ -3,11 +3,22 @@ using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
+
+
 public class PlayerBall : MonoBehaviour
 {
-    //defaul Ref
+    //********** VARIABLES **********
+
+    //Custom Components
+    [SerializeField] private PlayerBallInput playerInput;
+
+    //Player States
+    public enum PlayerBallState{ Unoccupied, Busy }
+    private PlayerBallState currentState = PlayerBallState.Unoccupied;
+
+    //Defaul Ref
     private Rigidbody2D rb;
-    private Camera mainCamera;
+
     [SerializeField] private SpriteRenderer ballRenderer;
 
     //Shot Parameteres (private - no need anywhere else)
@@ -17,22 +28,20 @@ public class PlayerBall : MonoBehaviour
     [SerializeField] private float stopVelocity = 0.08f;
     [SerializeField] private float touchRadius = 0.7f;
 
-
     //aimiming
     [Header("References")]
     [SerializeField] private LineRenderer aimLine;
-
     private bool isAiming;
     private Vector2 dragStartWorld;
     private Vector2 dragCurrentWorld;
-    public bool IsAiming => isAiming;
+    public bool IsAiming => isAiming; // public access (getter)
 
     //sounds 
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip shootSound;
-    [SerializeField] private AudioClip aimSound;
     [SerializeField] private AudioClip goodHoleSound;
     [SerializeField] private AudioClip badHoleSound;
+    [SerializeField] private AudioClip playerRestartSound;
 
     //start pos
     private Vector2 startPosition;
@@ -40,15 +49,13 @@ public class PlayerBall : MonoBehaviour
     //stop ball when velocity is low
     [SerializeField] private float snapStopVelocity = 0.15f;
 
-
     //rotation setings
     [Header("Visual Rotation")]
     [SerializeField] private Transform ballVisual;
     [SerializeField] private float rotationSpeed = 180f;
     [SerializeField] private float minRotationVelocity = 0.05f;
 
-
-    //for ball enters mud  -> save/reset dampping
+    //for ball enters mud  -> save/reset damping
     private float defaultLinearDamping;
     private float defaultAngularDamping;
 
@@ -59,16 +66,14 @@ public class PlayerBall : MonoBehaviour
     [SerializeField] private GameObject resetBallVfx;
 
 
+    //********** AWAKE **********
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        mainCamera = Camera.main;
 
-        if (aimLine != null)
-        {
-            aimLine.positionCount = 2;
-            aimLine.enabled = false;
-        }
+        //custom player input component
+        if (playerInput == null)
+            playerInput = GetComponent<PlayerBallInput>();
 
         //get audio compontn
         if (audioSource == null)
@@ -87,40 +92,44 @@ public class PlayerBall : MonoBehaviour
     }
 
 
+    //********** UPDATE **********
     private void Update()
     {
-        SnapStopIfSlow(); // stop if too slow
+        // stop if too slow
+        SnapStopIfSlow(); 
 
+        //If GameOver
         if (GameManager.GM != null && GameManager.GM.isGameOver)
         {
             CancelAim();
             StopBall();
             return;
         }
+
+        //Ball Animation (rotation)
         RotateBallVisual();
 
+        //Aiming / Shoot
         if (isAiming)
         {
-            if (PointerHeld())
+            if (playerInput != null && playerInput.PointerHeld())
             {
-                dragCurrentWorld = GetPointerWorldPosition();
+                dragCurrentWorld = playerInput.GetPointerWorldPosition();
                 UpdateAimLine();
             }
 
-            if (PointerUp())
-            {
+            if (playerInput != null && playerInput.PointerUp())
                 Shoot();
-            }
-
+      
             return;
         }
 
         if (!CanShoot())
             return;
 
-        if (PointerDown())
+        if (playerInput != null && playerInput.PointerDown())
         {
-            Vector2 pointerWorld = GetPointerWorldPosition();
+            Vector2 pointerWorld = playerInput.GetPointerWorldPosition();
 
             if (Vector2.Distance(pointerWorld, rb.position) <= touchRadius)
             {
@@ -134,30 +143,8 @@ public class PlayerBall : MonoBehaviour
         }
     }
 
-    private bool CanShoot()
-    {
-        return rb.linearVelocity.magnitude <= stopVelocity && !isAiming;
-    }
 
-    private void Shoot()
-    {
-        Vector2 dragVector = dragCurrentWorld - dragStartWorld;
-        dragVector = Vector2.ClampMagnitude(dragVector, maxDragDistance);
-
-        if (dragVector.magnitude < 0.1f)
-        {
-            CancelAim();
-            return;
-        }
-
-        Vector2 shotDirection = -dragVector.normalized;
-        float powerPercent = dragVector.magnitude / maxDragDistance;
-
-        rb.AddForce(shotDirection * shotPower * powerPercent, ForceMode2D.Impulse);
-        PlaySound(shootSound);
-        CancelAim();
-    }
-
+    //********** AIM LOGIC **********
     private void CancelAim()
     {
         isAiming = false;
@@ -184,106 +171,68 @@ public class PlayerBall : MonoBehaviour
         aimLine.SetPosition(1, lineEnd);
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+
+    //********** SHOOT LOGIC **********
+    private bool CanShoot()
     {
-        HoleLogic hole = other.GetComponent<HoleLogic>();
+        return rb.linearVelocity.magnitude <= stopVelocity && !isAiming && currentState == PlayerBallState.Unoccupied;
+    }
+
+    private void Shoot()
+    {
+        Vector2 dragVector = dragCurrentWorld - dragStartWorld;
+        dragVector = Vector2.ClampMagnitude(dragVector, maxDragDistance);
+
+        if (dragVector.magnitude < 0.1f)
+        {
+            CancelAim();
+            return;
+        }
+
+        Vector2 shotDirection = -dragVector.normalized;
+        float powerPercent = dragVector.magnitude / maxDragDistance;
+
+        rb.AddForce(shotDirection * shotPower * powerPercent, ForceMode2D.Impulse);
+        PlaySound(shootSound);
+        CancelAim();
+    }
+
+
+    //********** IF OVERLAPED WITH HOLE **********
+    private void OnTriggerEnter2D(Collider2D otherActor)
+    {
+        Hole hole = otherActor.GetComponent<Hole>();
 
         if (hole == null)
             return;
 
         if (GameManager.GM != null)
-            GameManager.GM.OnHoleHit(hole.HoleType);
+            GameManager.GM.OnHoleHit(hole);
 
         StopBall();
+
+        if (GameManager.GM != null && GameManager.GM.isGameOver)
+            return;
 
         //vfx
         GameObject selectedVfx = hole.HoleType == HoleType.Good ? goodHoleHitVfx : badHoleHitVfx;
         SpawnVfx(selectedVfx);
 
         //sound
-        AudioClip selectedSound = hole.HoleType == HoleType.Good ? goodHoleSound : badHoleSound;
-        PlaySound(selectedSound);
+        AudioClip currentHoleSound = hole.HoleType == HoleType.Good ? goodHoleSound : badHoleSound;
+        PlaySound(currentHoleSound);
 
-        //hide ball sprite and wait before reset the possition
-        if (ballRenderer != null)
-            ballRenderer.enabled = false;
-        ResetBallToStart();
-      
-
-    }
-
-    private IEnumerator ResetBallAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        ResetBallVisual();
+        ResetBallToStart();     
     }
 
 
+    //********** STOP THE BALL **********
     private void StopBall()
     {
         rb.linearVelocity = Vector2.zero;
         rb.angularVelocity = 0f;
     }
 
-
-    //********* Controllers *********
-    private Vector2 GetPointerWorldPosition()
-    {
-        Vector3 screenPosition;
-
-        if (Input.touchCount > 0)
-            screenPosition = Input.GetTouch(0).position;
-        else
-            screenPosition = Input.mousePosition;
-
-        Vector3 worldPosition = mainCamera.ScreenToWorldPoint(screenPosition);
-        return new Vector2(worldPosition.x, worldPosition.y);
-    }
-
-    private bool PointerDown()
-    {
-        return Input.GetMouseButtonDown(0) || (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began);
-    }
-
-    private bool PointerHeld()
-    {
-        return Input.GetMouseButton(0) ||
-               (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Moved) ||
-               (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Stationary);
-    }
-
-    private bool PointerUp()
-    {
-        return Input.GetMouseButtonUp(0) ||
-               (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Ended);
-    }
-
-    private void PlaySound(AudioClip PlaySound)
-    {
-        if (audioSource == null || PlaySound == null)
-            return;
-
-        audioSource.PlayOneShot(PlaySound);
-    }
-
-
-    public void ResetBallToStart()
-    {
-        rb.linearVelocity = Vector2.zero;
-        rb.angularVelocity = 0f;
-        transform.position = startPosition;
-
-        StartCoroutine(ResetBallAfterDelay(1.0f));
-    }
-
-    public void ResetBallVisual()
-    {
-        if (ballRenderer != null)
-            ballRenderer.enabled = true;
-        SpawnVfx(resetBallVfx);
-    }
-
-    //Stop ball Velocity if to slow
     private void SnapStopIfSlow()
     {
         if (isAiming)
@@ -297,6 +246,41 @@ public class PlayerBall : MonoBehaviour
     }
 
 
+    //********** Player Reset **********
+    public void ResetBallToStart()
+    {
+        currentState = PlayerBallState.Busy;
+        //hide ball sprite and wait before reset the possition
+        if (ballRenderer != null)
+            ballRenderer.enabled = false;
+
+        rb.linearVelocity = Vector2.zero;
+        rb.angularVelocity = 0f;
+        transform.position = startPosition;
+
+        StartCoroutine(ResetBallAfterDelay(1.0f));
+    }
+
+    private IEnumerator ResetBallAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ResetBallVisual();
+    }
+
+    public void ResetBallVisual()
+    {
+        if (ballRenderer != null)
+            ballRenderer.enabled = true;
+
+        if(playerRestartSound != null)
+            PlaySound(playerRestartSound);
+
+        SpawnVfx(resetBallVfx);
+        currentState = PlayerBallState.Unoccupied;
+    }
+
+
+    //********* "Animation" of the ball *********
     private void RotateBallVisual()
     {
         if (ballVisual == null)
@@ -317,6 +301,8 @@ public class PlayerBall : MonoBehaviour
         ballVisual.Rotate(0f, 0f, rotationAmount);
     }
 
+
+    //********* Obstacle Effect  (mud slow)  *********
     public void EnterMud(float speedMultiplier, float mudLinearDamping)
     {
         rb.linearVelocity *= speedMultiplier;
@@ -329,6 +315,8 @@ public class PlayerBall : MonoBehaviour
         rb.angularDamping = defaultAngularDamping;
     }
 
+
+    //********* VFX *********
     public void SpawnVfx(GameObject vfxPrefab)
     {
         if (vfxPrefab == null)
@@ -340,5 +328,15 @@ public class PlayerBall : MonoBehaviour
         float destroyDelay = 1.0f;
         if (destroyDelay > 0f)
             Destroy(spawnedVfx, destroyDelay);
+    }
+
+
+    //********* Sound *********
+    private void PlaySound(AudioClip PlaySound)
+    {
+        if (audioSource == null || PlaySound == null)
+            return;
+
+        audioSource.PlayOneShot(PlaySound);
     }
 }

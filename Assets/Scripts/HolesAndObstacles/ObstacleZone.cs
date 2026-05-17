@@ -1,14 +1,12 @@
 using UnityEngine;
 
-public enum ObstacleType
-{
-    Mud,
-    Water
-}
+//Types of Obstacles
+public enum ObstacleType { Mud, Water }
 
-[RequireComponent(typeof(Collider2D))]
 public class ObstacleZone : MonoBehaviour
 {
+    //********** VARIABLES **********
+
     [Header("Obstacle Settings")]
     [SerializeField] private ObstacleType obstacleType = ObstacleType.Mud;
 
@@ -16,47 +14,56 @@ public class ObstacleZone : MonoBehaviour
     [SerializeField] private float mudSpeedMultiplier = 0.35f;
     [SerializeField] private float mudLinearDamping = 4f;
 
-    //vfx
     [Header("VFX")]
-    [SerializeField] private GameObject waterHitVfx;
-    [SerializeField] private GameObject mudHitVfx;
+    [SerializeField] private GameObject hitVfx;
 
-    //audio 
     [Header("Audio")]
     [SerializeField] private AudioSource audioSource;
-    [SerializeField] private AudioClip waterSound;
-    [SerializeField] private AudioClip mudSound;
+    [SerializeField] private AudioClip hitSound;
 
+
+    //********** Awake **********
     private void Awake()
     {
-        Collider2D obstacleCollider = GetComponent<Collider2D>();
-        obstacleCollider.isTrigger = true;
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
+
+    //********** ON Water or Mud Hit Trigger **********
     private void OnTriggerEnter2D(Collider2D other)
     {
         PlayerBall playerBall = other.GetComponent<PlayerBall>();
 
         if (playerBall == null)
             return;
+        //vfx & sound
+        playerBall.SpawnVfx(hitVfx);
+        PlaySound(hitSound);
 
+        //if Mud
         if (obstacleType == ObstacleType.Mud)
         {
             playerBall.EnterMud(mudSpeedMultiplier, mudLinearDamping);
-            playerBall.SpawnVfx(mudHitVfx);
-            PlaySound(mudSound);
         }
+        //If water
         else if (obstacleType == ObstacleType.Water)
         {
-            if (GameManager.GM != null)
-                GameManager.GM.OnHoleHit(HoleType.Bad);
 
-            playerBall.SpawnVfx(waterHitVfx);
-            PlaySound(waterSound);
+            if (GameManager.GM != null)
+            {
+                GameManager.GM.OnHoleHit(null); // treat water same way as red hole
+
+                if (GameManager.GM.isGameOver)
+                    return;
+            }
+
             playerBall.ResetBallToStart();
         }
     }
 
+
+    //********** Restore Player Speed when leave Mud **********
     private void OnTriggerExit2D(Collider2D other)
     {
         PlayerBall playerBall = other.GetComponent<PlayerBall>();
@@ -65,16 +72,16 @@ public class ObstacleZone : MonoBehaviour
             return;
 
         if (obstacleType == ObstacleType.Mud)
-        {
             playerBall.ExitMud();
-        }
     }
 
-    private void PlaySound(AudioClip PlaySound)
+
+    //********** Sound Player**********
+    private void PlaySound(AudioClip sound)
     {
-        if (audioSource == null || PlaySound == null)
+        if (audioSource == null || sound == null)
             return;
 
-        audioSource.PlayOneShot(PlaySound);
+        audioSource.PlayOneShot(sound);
     }
 }

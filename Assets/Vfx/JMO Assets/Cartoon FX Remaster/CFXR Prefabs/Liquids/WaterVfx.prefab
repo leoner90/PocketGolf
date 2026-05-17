@@ -28480,7 +28480,7 @@ GameObject:
   - component: {fileID: 8205706795460263315}
   - component: {fileID: 114897394939201808}
   m_Layer: 0
-  m_Name: CFXR Water Splash (Smaller)
+  m_Name: WaterVfx
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

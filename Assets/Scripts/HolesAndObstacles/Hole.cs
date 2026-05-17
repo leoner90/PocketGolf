@@ -1,20 +1,21 @@
 using System.Collections;
 using UnityEngine;
 
-public enum HoleType
-{
-    Good,
-    Bad
-}
+//hole Types
+public enum HoleType { Good, Bad }
 
+//ref
 [RequireComponent(typeof(Collider2D))]
-public class HoleLogic : MonoBehaviour
+
+public class Hole : MonoBehaviour
 {
-    //Hole Type Good by Default
+    //********** VARIABLES **********
+
+    //Hole Type - Good by Default
     [Header("Hole Settings")]
     [SerializeField] private HoleType holeType = HoleType.Good;
 
-    //Holes Visual Setting, good, bad , in transition
+    //Holes Visual Setting, good, bad, in-transit
     [Header("Visual Settings")]
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Color goodColor = Color.blue;
@@ -22,8 +23,13 @@ public class HoleLogic : MonoBehaviour
     [SerializeField] private Color warningColor = Color.white;
     [SerializeField] private float flashSpeed = 0.15f;
 
-    public HoleType HoleType => holeType;
+    public HoleType HoleType => holeType; // const getter
 
+    //Save to which spawn index this hole belong too, so on restart we will not spawn in same spawn index at all.
+    public int CurrentSpawnIndex { get; private set; } = -1;
+
+
+    //********** AWAKE **********
     private void Awake()
     {
         if (spriteRenderer == null)
@@ -35,6 +41,8 @@ public class HoleLogic : MonoBehaviour
         UpdateVisual();
     }
 
+
+    //********** Hole Type Set/Toggle **********
     public void SetHoleType(HoleType newType)
     {
         holeType = newType;
@@ -47,6 +55,8 @@ public class HoleLogic : MonoBehaviour
         UpdateVisual();
     }
 
+
+    //********** Flash for 2 sec **********
     public IEnumerator FlashWarning(float duration)
     {
         if (spriteRenderer == null)
@@ -69,11 +79,20 @@ public class HoleLogic : MonoBehaviour
         spriteRenderer.color = originalColor;
     }
 
+
+    //********** Update color based on Hole type **********
     private void UpdateVisual()
     {
         if (spriteRenderer == null)
             return;
 
         spriteRenderer.color = holeType == HoleType.Good ? goodColor : badColor;
+    }
+
+
+    //********** Save index this hole belong too - to delete used hole **********
+    public void SetCurrentSpawnIndex(int spawnIndex)
+    {
+        CurrentSpawnIndex = spawnIndex;
     }
 }
